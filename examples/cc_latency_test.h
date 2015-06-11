@@ -192,7 +192,7 @@ void dump_task_info(struct ibv_exp_task *ptask)
 
 static int __latency_test_proc_root(void* context)
 {
-		int completion_on_each_receive = 0;
+//		int completion_on_each_receive = 0;
 		struct cc_context *ctx = context;
 		int my_id = ctx->conf.my_proc;
 		int rc = 0;
@@ -211,7 +211,6 @@ static int __latency_test_proc_root(void* context)
 
 		// get a series of 'Send' entries.
 		int last_iter = num_sends_per_iteration - 1;
-
 		for (iter = 0 ; iter < num_sends_per_iteration; iter++) {
 				wr1 					= &__lat_test_alg_obj.wr[idx];
 				wr2 					= &__lat_test_alg_obj.wr[idx+1];
@@ -239,7 +238,7 @@ static int __latency_test_proc_root(void* context)
 				wr1->exp_opcode					= IBV_EXP_WR_SEND_ENABLE;
 				wr1->exp_send_flags	    	    = 0;
 				wr1->task.wqe_enable.qp			= ctx->proc_array[peer_rank].qp;
-				wr1->task.wqe_enable.wqe_count	= 1;
+				wr1->task.wqe_enable.wqe_count	= (iter + 1);
 
 				if (iter == last_iter) {
 					wr1->exp_send_flags	    	|= IBV_EXP_SEND_WAIT_EN_LAST;
@@ -249,13 +248,13 @@ static int __latency_test_proc_root(void* context)
 				wr2->wr_id						= 5000 + iter;
 				wr2->next						= wr3;
 				wr2->exp_opcode					= IBV_EXP_WR_CQE_WAIT;
-				wr2->exp_send_flags				= completion_on_each_receive ? IBV_EXP_SEND_SIGNALED : 0; // IBV_EXP_SEND_SIGNALED; // ask for completion on each receive  // 0; // aaaa
+				wr2->exp_send_flags				= 0;
 				if (iter == last_iter) {
 					// last WAIT should trigger the completion
-					wr2->exp_send_flags	    	= (IBV_EXP_SEND_SIGNALED|IBV_EXP_SEND_WAIT_EN_LAST);
+					wr2->exp_send_flags	    	= (IBV_EXP_SEND_SIGNALED | IBV_EXP_SEND_WAIT_EN_LAST);
 				}
 				wr2->task.cqe_wait.cq			= ctx->proc_array[peer_rank].rcq;
-				wr2->task.cqe_wait.cq_count		= 1;
+				wr2->task.cqe_wait.cq_count		= (iter + 1);
 
 				idx += 2;
 		}
@@ -292,7 +291,7 @@ static int __latency_test_proc_root(void* context)
 		//printf("root waiting for send completions mqpn=0x%x wait enable from cqn 0x%x\n", ctx->mqp->qp_num,
 		//		to_mcq(ctx->proc_array[peer_rank].rcq)->cqn);
 
-		int expected_completions = completion_on_each_receive ? num_sends_per_iteration : 1; //  // 1; // num_iterations;  // was 1 // aaaa
+		int expected_completions = 1;
 		rc = wait_for_completions(ctx->mcq, __lat_test_alg_obj.wc, expected_completions, my_id, "mcq");
 
 		return rc;
@@ -301,7 +300,7 @@ static int __latency_test_proc_root(void* context)
 
 static int __latency_test_proc_nonroot(void* context)
 {
-	int completion_on_each_receive = 0;
+//	int completion_on_each_receive = 0;
 	struct cc_context *ctx = context;
 	int my_id = ctx->conf.my_proc;
 	int rc = 0;
@@ -349,9 +348,9 @@ static int __latency_test_proc_nonroot(void* context)
 			wr1->next						= wr2;
 			wr1->exp_opcode					= IBV_EXP_WR_CQE_WAIT;
 			//wr1->exp_send_flags				= 0;
-			wr1->exp_send_flags				= completion_on_each_receive ? IBV_EXP_SEND_SIGNALED : 0; // IBV_EXP_SEND_SIGNALED; // ask for completion on each receive  // 0; // aaaa
+			wr1->exp_send_flags				= 0;
 			wr1->task.cqe_wait.cq			= ctx->proc_array[root_rank].rcq;
-			wr1->task.cqe_wait.cq_count		= 1;
+			wr1->task.cqe_wait.cq_count		= (iter + 1);
 
 			if (iter == last_iter) {
 					wr1->exp_send_flags	|= IBV_EXP_SEND_WAIT_EN_LAST;
@@ -363,7 +362,7 @@ static int __latency_test_proc_nonroot(void* context)
 			wr2->exp_opcode					= IBV_EXP_WR_SEND_ENABLE;
 			wr2->exp_send_flags 			= 0;
 			wr2->task.wqe_enable.qp			= ctx->proc_array[root_rank].qp;
-			wr2->task.wqe_enable.wqe_count	= 1;
+			wr2->task.wqe_enable.wqe_count	= (iter + 1);
 
 
 			if (iter == last_iter) {
@@ -406,7 +405,7 @@ static int __latency_test_proc_nonroot(void* context)
 		exit(-1);
 	}
 
-	int expected_completions = completion_on_each_receive ? num_sends_per_iteration: 1;
+	int expected_completions = 1;
 	rc = wait_for_completions(ctx->mcq, __lat_test_alg_obj.wc, expected_completions, my_id, "mcq");
 
 	//rc = wait_for_completions(ctx->proc_array[root_rank].scq, __lat_test_alg_obj.wc, num_iterations, my_id, "scq");
